@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+build/
+*.egg-info/
 review_positive/
 test-data/
 *.jpg
