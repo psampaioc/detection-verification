@@ -29,7 +29,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "dataset_dir",
         type=Path,
-        help="Directory containing images/ and labels/, or a dataset root with train/valid/test.",
+        nargs="?",
+        default=Path("."),
+        help="Directory containing images/ and labels/, or a dataset root with train/valid/test (default: .).",
     )
     parser.add_argument(
         "--all-splits",

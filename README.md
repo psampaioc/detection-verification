@@ -38,6 +38,13 @@ Process all available splits without changing the source:
 python3 detection_verification.py /path/to/Person_Detection.v2i.yolov8 --all-splits
 ```
 
+When launched from inside the dataset root, the dataset path can be omitted:
+
+```bash
+cd /path/to/Person_Detection.v2i.yolov8
+python3 /path/to/detection_verification.py --all-splits
+```
+
 Only after checking the generated review output, intentionally move positive
 source files to reclaim space:
 
