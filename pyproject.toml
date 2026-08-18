@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "detection-verification"
+version = "0.1.0"
+description = "Portable YOLO annotation review tool with bounding-box previews"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["Pillow>=10,<12"]
+license = { file = "LICENSE" }
+
+[project.scripts]
+detection-verification = "detection_verification:main"
+
+[tool.setuptools]
+py-modules = ["detection_verification"]

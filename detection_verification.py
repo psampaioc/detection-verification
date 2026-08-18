@@ -31,12 +31,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         nargs="?",
         default=Path("."),
-        help="Directory containing images/ and labels/, or a dataset root with train/valid/test (default: .).",
+        help="Optional input directory (default: current directory).",
     )
     parser.add_argument(
-        "--all-splits",
+        "--all",
         action="store_true",
-        help="Process train, valid and test below dataset_dir.",
+        help="Process train, valid and test below the current/input directory.",
     )
     parser.add_argument(
         "--output-name",
@@ -149,7 +149,7 @@ def process_split(split_dir: Path, output_name: str, move: bool, overwrite: bool
 def main() -> int:
     args = parse_args()
     root = args.dataset_dir.resolve()
-    if args.all_splits:
+    if args.all:
         split_dirs = [root / name for name in ("train", "valid", "test") if (root / name).is_dir()]
         if not split_dirs:
             print(f"ERROR: no train/valid/test directories found below {root}", file=sys.stderr)

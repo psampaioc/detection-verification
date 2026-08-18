@@ -20,36 +20,43 @@ with red bounding boxes.
 
 ## Usage
 
-Install the only dependency:
+## Portable installation
+
+The Python CLI is the portable interface and works on Linux, macOS, and
+Windows. From this repository directory, install it with:
 
 ```bash
-python3 -m pip install Pillow
+python -m pip install .
 ```
 
-Process one split without changing the source:
+Then, from inside a split directory such as `train/`, `valid/`, or `test/`,
+process only the current directory:
 
 ```bash
-python3 detection_verification.py /path/to/train
+detection-verification
 ```
 
-Process all available splits without changing the source:
+From the dataset root, process all available splits with `--all`:
 
 ```bash
-python3 detection_verification.py /path/to/Person_Detection.v2i.yolov8 --all-splits
+detection-verification --all
 ```
 
-When launched from inside the dataset root, the dataset path can be omitted:
+Without installing, the same commands work from this repository directory:
 
 ```bash
-cd /path/to/Person_Detection.v2i.yolov8
-python3 /path/to/detection_verification.py --all-splits
+python detection_verification.py
+python detection_verification.py --all
 ```
+
+The optional `detection_verification.sh` launcher is only for POSIX shells;
+Windows users should use the Python commands above.
 
 Only after checking the generated review output, intentionally move positive
 source files to reclaim space:
 
 ```bash
-python3 detection_verification.py /path/to/Person_Detection.v2i.yolov8 --all-splits --move
+detection-verification --all --move
 ```
 
 Moving files makes the original YOLO dataset incomplete. Keep a backup or use
