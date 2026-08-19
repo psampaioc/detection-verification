@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""Create YOLO positive-image review sets with drawn bounding boxes.
-
-The default mode is non-destructive: it writes annotated images and copies
-positive labels to an output directory. Use --move only when intentionally
-removing positive files from the source dataset.
-"""
+"""Convert a YOLO image/label split into in-place annotated images and MP4."""
 
 from __future__ import annotations
 
 import argparse
-import shutil
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,6 +16,7 @@ except ImportError as exc:  # pragma: no cover - exercised by the CLI
 
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+VIDEO_FPS = 10
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,19 +36,9 @@ def parse_args() -> argparse.Namespace:
         help="Process train, valid and test below the current/input directory.",
     )
     parser.add_argument(
-        "--output-name",
-        default=".",
-        help="Output directory name inside each processed split (default: current split directory).",
-    )
-    parser.add_argument(
-        "--move",
+        "--video",
         action="store_true",
-        help="Move positive labels and source images after annotated output is written. Destructive.",
-    )
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Overwrite existing output files.",
+        help="Draw boxes into images in place and create bounding_boxes.mp4.",
     )
     return parser.parse_args()
 
@@ -63,14 +50,6 @@ def validate_split(split_dir: Path) -> tuple[Path, Path]:
     if missing:
         raise ValueError(f"Expected images/ and labels/ inside {split_dir}; missing: {', '.join(missing)}")
     return images_dir, labels_dir
-
-
-def find_image(images_dir: Path, label_path: Path) -> Path | None:
-    for extension in IMAGE_EXTENSIONS:
-        candidate = images_dir / f"{label_path.stem}{extension}"
-        if candidate.is_file():
-            return candidate
-    return None
 
 
 def read_boxes(label_path: Path) -> list[tuple[int, float, float, float, float]]:
@@ -109,40 +88,65 @@ def annotated_image(image_path: Path, boxes: list[tuple[int, float, float, float
     return image
 
 
-def process_split(split_dir: Path, output_name: str, move: bool, overwrite: bool) -> dict[str, int]:
-    images_dir, labels_dir = validate_split(split_dir)
-    output_dir = split_dir / output_name
-    positive_labels_dir = output_dir / "positive_labels"
-    positive_images_dir = output_dir / "positive_images"
-    positive_labels_dir.mkdir(parents=True, exist_ok=True)
-    positive_images_dir.mkdir(parents=True, exist_ok=True)
+def natural_image_sort_key(path: Path) -> tuple[object, ...]:
+    return tuple(int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name))
 
-    stats = {"labels_scanned": 0, "positive_labels": 0, "images_written": 0, "missing_images": 0, "errors": 0}
-    for label_path in sorted(labels_dir.glob("*.txt")):
-        stats["labels_scanned"] += 1
-        if not label_path.read_text(encoding="utf-8").strip():
-            continue
-        stats["positive_labels"] += 1
-        image_path = find_image(images_dir, label_path)
-        if image_path is None:
-            stats["missing_images"] += 1
-            print(f"WARNING: no matching image for {label_path.name}", file=sys.stderr)
-            continue
-        try:
-            boxes = read_boxes(label_path)
-            output_label = positive_labels_dir / label_path.name
-            output_image = positive_images_dir / image_path.name
-            if not overwrite and (output_label.exists() or output_image.exists()):
-                raise FileExistsError(f"output exists for {label_path.stem}; use --overwrite")
-            annotated_image(image_path, boxes).save(output_image, quality=95)
-            shutil.copy2(label_path, output_label)
-            stats["images_written"] += 1
-            if move:
-                image_path.unlink()
-                label_path.unlink()
-        except (OSError, ValueError) as exc:
-            stats["errors"] += 1
-            print(f"ERROR: {exc}", file=sys.stderr)
+
+def process_video_split(split_dir: Path) -> dict[str, int]:
+    images_dir, labels_dir = validate_split(split_dir)
+    image_paths = sorted(
+        [path for path in images_dir.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS],
+        key=natural_image_sort_key,
+    )
+    if not image_paths:
+        raise ValueError(f"No supported images found in {images_dir}")
+
+    output_path = split_dir / "bounding_boxes.mp4"
+    first_image = Image.open(image_paths[0]).convert("RGB")
+    width, height = first_image.size
+    first_image.close()
+    if width % 2 or height % 2:
+        raise ValueError(f"Video requires even dimensions, got {width}x{height}")
+
+    command = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-f", "rawvideo", "-vcodec", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{width}x{height}", "-r", str(VIDEO_FPS), "-i", "-",
+        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(output_path),
+    ]
+    try:
+        encoder = subprocess.Popen(command, stdin=subprocess.PIPE)
+    except FileNotFoundError as exc:
+        raise ValueError("ffmpeg is required for --video but was not found in PATH") from exc
+
+    stats = {"images_scanned": 0, "images_annotated": 0, "images_without_boxes": 0, "missing_labels": 0}
+    try:
+        for image_path in image_paths:
+            stats["images_scanned"] += 1
+            label_path = labels_dir / f"{image_path.stem}.txt"
+            if not label_path.is_file():
+                stats["missing_labels"] += 1
+                boxes = []
+            else:
+                boxes = read_boxes(label_path) if label_path.read_text(encoding="utf-8").strip() else []
+            if boxes:
+                stats["images_annotated"] += 1
+            else:
+                stats["images_without_boxes"] += 1
+            image = annotated_image(image_path, boxes)
+            image.save(image_path)
+            encoder.stdin.write(image.tobytes())
+            image.close()
+        encoder.stdin.close()
+        return_code = encoder.wait()
+        if return_code != 0:
+            raise ValueError(f"ffmpeg failed with exit code {return_code}")
+    except Exception:
+        if encoder.stdin and not encoder.stdin.closed:
+            encoder.stdin.close()
+        encoder.kill()
+        encoder.wait()
+        raise
     return stats
 
 
@@ -157,21 +161,17 @@ def main() -> int:
     else:
         split_dirs = [root]
 
-    if args.move:
-        print("WARNING: --move removes positive source files from the original dataset.")
-
-    total = {key: 0 for key in ("labels_scanned", "positive_labels", "images_written", "missing_images", "errors")}
-    for split_dir in split_dirs:
-        try:
-            stats = process_split(split_dir, args.output_name, args.move, args.overwrite)
-        except ValueError as exc:
-            print(f"ERROR: {exc}", file=sys.stderr)
-            return 2
-        print(f"{split_dir}: {stats}")
-        for key, value in stats.items():
-            total[key] += value
-    print(f"TOTAL: {total}")
-    return 1 if total["missing_images"] or total["errors"] else 0
+    if args.video:
+        for split_dir in split_dirs:
+            try:
+                stats = process_video_split(split_dir)
+            except (ValueError, OSError) as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                return 2
+            print(f"{split_dir / 'bounding_boxes.mp4'}: {stats}")
+        return 0
+    print("Use --video to create the bounding-box review video.", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

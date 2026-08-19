@@ -9,12 +9,12 @@ with red bounding boxes.
 
 - Input: one directory containing `images/` and `labels/`, or a dataset root with
   `train/`, `valid/`, and `test/` directories.
-- Positive label: a `.txt` file containing at least one non-empty line.
+- Labels with no rows produce frames without boxes.
 - Pairing: exact full stem match; no regex or shortened frame-number matching.
-- Output: `<split>/positive_labels/` and `<split>/positive_images/` by default.
-- Safety: default mode preserves the original dataset. `--move` is an explicit
-  destructive mode and removes positive source files only after the annotated
-  image and label output succeed.
+- Output: annotated images are written in place and `bounding_boxes.mp4` is
+  written in the processed split.
+- `--video` reads every image and label, draws boxes directly into the original
+  image, and includes frames without boxes in the video.
 - Exit status: non-zero if a positive label has no matching image or has an
   invalid YOLO line.
 
@@ -29,36 +29,24 @@ Windows. From this repository directory, install it with:
 python -m pip install .
 ```
 
-Then, from inside a split directory such as `train/`, `valid/`, or `test/`,
-process only the current directory:
-
-```bash
-detection-verification
-```
-
-From the dataset root, process all available splits with `--all`:
-
-```bash
-detection-verification --all
-```
-
-Without installing, the same commands work from this repository directory:
-
-```bash
-python detection_verification.py
-python detection_verification.py --all
-```
-
 The optional `detection_verification.sh` launcher is only for POSIX shells;
 Windows users should use the Python commands above.
 
-Only after checking the generated review output, intentionally move positive
-source files to reclaim space:
+Create a full review video from the current split:
 
 ```bash
-detection-verification --all --move
+detection-verification --video
 ```
 
-Moving files makes the original YOLO dataset incomplete. Keep a backup or use
-the default non-destructive mode if the dataset may still be needed for model
-training.
+From the dataset root, create one video for each split:
+
+```bash
+detection-verification --all --video
+```
+
+This conversion overwrites the images in place and overwrites
+`bounding_boxes.mp4`. Keep the NAS backup if the unmodified images may be
+needed later.
+
+The conversion is intentionally destructive to the local image pixels. Keep
+the NAS backup if the unmodified images may be needed later.
