@@ -21,7 +21,7 @@ VIDEO_FPS = 10
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Find non-empty YOLO labels and create images with bounding boxes."
+        description="Draw YOLO bounding boxes into images and create a review MP4."
     )
     parser.add_argument(
         "dataset_dir",

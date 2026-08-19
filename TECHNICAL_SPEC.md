@@ -29,9 +29,18 @@ a time, so memory usage is approximately one image plus the current annotation.
 
 - No model inference or automatic judgment that a box contains a person.
 - No regex-based matching by `frame_00004`; names can repeat across sources.
-- No model inference or automatic judgment that a box contains a person.
 - No preservation of local image pixels; the NAS backup is the recovery source.
 - No dataset files committed to the public repository.
+
+## CLI contract
+
+```text
+detection-verification [dataset_dir] [--video] [--all]
+```
+
+`dataset_dir` defaults to the current directory. `--video` is the conversion
+operation. `--all` selects the three child directories named `train`, `valid`,
+and `test`. The fixed output rate is 10 FPS, and the output MP4 is overwritten.
 
 ## Acceptance criteria
 
