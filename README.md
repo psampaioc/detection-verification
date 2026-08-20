@@ -7,8 +7,7 @@ streams the annotated frames to `bounding_boxes.mp4`.
 ## Important: conversion is destructive
 
 The program overwrites image pixels in `images/`. It does not move or copy
-images to another folder. Keep the original dataset on the NAS or make a
-backup before running it.
+images to another folder. Keep an unmodified backup before running it.
 
 Labels and image files are matched by their complete filename stem. Empty
 labels produce video frames without boxes; every image is still included.
@@ -23,6 +22,26 @@ The Python CLI is intended for Linux, macOS, and Windows, provided Python,
 Pillow, and ffmpeg are installed.
 
 ## Installation
+
+### Global installation (recommended)
+
+Install once with `uv`; it makes `detection-verification` available from any
+directory without activating an environment:
+
+```bash
+uv tool install git+https://github.com/psampaioc/detection-verification.git
+```
+
+After a new release, update it with:
+
+```bash
+uv tool install --reinstall git+https://github.com/psampaioc/detection-verification.git
+```
+
+If the command is not found after installation, ensure `~/.local/bin` is in
+your shell `PATH`, then open a new terminal.
+
+### Local development installation
 
 From this repository directory:
 
