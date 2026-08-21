@@ -1,182 +1,126 @@
 # YOLO Detection Verification
 
-Small Python CLI that converts a YOLO image/label dataset into a review video.
-It reads every image, draws YOLO bounding boxes directly into that image, and
-streams the annotated frames to `bounding_boxes.mp4`.
+Small interactive CLI for checking YOLO annotations visually. It scans the
+current directory, reports the dataset counts, draws the labelled bounding
+boxes directly into `images/`, and creates a complete MP4 containing every
+frame, including frames without detections.
 
 ## Important: conversion is destructive
 
-The program overwrites image pixels in `images/`. It does not move or copy
-images to another folder. Keep an unmodified backup before running it.
-
-Labels and image files are matched by their complete filename stem. Empty
-labels produce video frames without boxes; every image is still included.
+When confirmed, the tool overwrites the image pixels in `images/`. It does not
+copy or move images. Keep an unmodified backup before generating the video.
 
 ## Requirements
 
 - Python 3.9 or newer;
-- Pillow;
-- `ffmpeg` available in `PATH`.
+- `ffmpeg` available in `PATH`;
+- Pillow (installed automatically with the application).
 
-The Python CLI is intended for Linux, macOS, and Windows, provided Python,
-Pillow, and ffmpeg are installed.
+## Global installation
 
-## Installation
-
-### Global installation (recommended)
-
-Install once with `uv`; it makes `detection-verification` available from any
-directory without activating an environment:
+Install once with `uv`:
 
 ```bash
 uv tool install git+https://github.com/psampaioc/detection-verification.git
 ```
 
-After a new release, update it with:
+This creates an isolated application environment and makes the command
+`detection-verification` available from any directory. `uv` must have its
+executable directory in `PATH`; normally this is `~/.local/bin`.
+
+To update an existing installation:
 
 ```bash
 uv tool install --reinstall git+https://github.com/psampaioc/detection-verification.git
 ```
 
-If the command is not found after installation, ensure `~/.local/bin` is in
-your shell `PATH`, then open a new terminal.
-
-### Local development installation
-
-From this repository directory:
+Confirm the installation with:
 
 ```bash
-python -m pip install .
+command -v detection-verification
 ```
-
-If the operating system rejects global installation, use a virtual environment:
-
-```bash
-python -m venv .venv
-```
-
-Linux/macOS:
-
-```bash
-source .venv/bin/activate
-python -m pip install .
-```
-
-Windows PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-python -m pip install .
-```
-
-The install creates the command `detection-verification`.
 
 ## Dataset layout
 
-To process one split, the current directory must contain:
+Run the command inside the split you want to review:
 
 ```text
-split/
+train/
 ├── images/
 └── labels/
 ```
 
-To process all splits, the current directory must contain:
+The tool only uses the current directory. It does not search for or process
+`train`, `valid`, or `test` automatically.
+
+## Usage
+
+```bash
+cd /path/to/train
+detection-verification
+```
+
+The program first prints:
 
 ```text
-dataset/
-├── train/images/
-├── train/labels/
-├── valid/images/
-├── valid/labels/
-├── test/images/
-└── test/labels/
+Images: <number>
+Labels: <number>
+Frames com detection: <number>
 ```
 
-The names `train`, `valid`, and `test` are the split names supported by
-`--all`.
-
-## Commands and flags
-
-### `--video`
-
-Required conversion flag. Processes the current split, draws boxes in place,
-and creates `bounding_boxes.mp4`.
-
-```bash
-cd /path/to/dataset/train
-detection-verification --video
-```
-
-This modifies only `train/images/` and creates `train/bounding_boxes.mp4`.
-
-### `--all`
-
-Processes `train`, `valid`, and `test` below the current directory. It must be
-combined with `--video`:
-
-```bash
-cd /path/to/dataset
-detection-verification --all --video
-```
-
-It creates one video per split and modifies the images in all three splits.
-
-### Optional positional `dataset_dir`
-
-The input directory is optional and defaults to the current directory (`.`).
-Normally, do not provide it:
-
-```bash
-cd /path/to/dataset/train
-detection-verification --video
-```
-
-It can be supplied when needed:
-
-```bash
-detection-verification /path/to/dataset/train --video
-```
-
-### Complete command reference
+It then asks:
 
 ```text
-detection-verification [dataset_dir] [--video] [--all]
+Gerar video a 15 FPS? (y/n ou y -fps N):
 ```
 
-Valid examples:
+Accepted responses:
+
+- `y` — draw boxes in place and create `video.mp4` at 15 FPS;
+- `y -fps 30` — do the same at 30 FPS, or any other positive integer FPS.
+
+Any other response, including `n`, cancels without modifying images.
+
+There are no command-line flags, positional paths, split selectors, copy
+options, or move options.
+
+## Processing behavior
+
+1. Confirm that the current directory contains both `images/` and `labels/`.
+2. Count supported images and YOLO label files.
+3. Parse and validate all labels before changing any image.
+4. Match each image to its label by the complete filename stem.
+5. Sort image filenames deterministically.
+6. Draw every corresponding box in red directly into the original image.
+7. Stream every processed image to `video.mp4`, including images with empty
+   labels.
+
+The dataset should contain one continuous source sequence if the output is
+intended to represent a continuous video. Repeated frame numbers from
+different source sequences cannot be reliably reconstructed from filenames
+alone.
+
+## Diagnostics
+
+The program stops before modifying images when it finds:
+
+- missing `images/` or `labels/`;
+- no supported images;
+- malformed YOLO rows;
+- invalid normalized coordinates;
+- label files without matching images;
+- inconsistent image dimensions;
+- missing `ffmpeg`.
+
+## Local development
+
+From this repository:
 
 ```bash
-detection-verification --video
-detection-verification --all --video
-detection-verification /path/to/train --video
-detection-verification /path/to/dataset --all --video
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
 ```
 
-There is no `--move`, `--copy`, `--fps`, or `--overwrite` flag. The program
-always uses 10 FPS, overwrites `bounding_boxes.mp4`, and modifies images in
-place.
-
-## Output and diagnostics
-
-For each processed split it prints:
-
-- number of images scanned;
-- number of images with at least one box;
-- number of images without boxes;
-- number of missing label files.
-
-Malformed YOLO labels, missing folders, unsupported dimensions, missing ffmpeg,
-and encoder failures stop the command with an error.
-
-## Without installing
-
-From the repository directory, run the Python file directly:
-
-```bash
-python detection_verification.py --video
-python detection_verification.py --all --video
-```
-
-The optional `detection_verification.sh` launcher is POSIX-only; Windows users
-should use the Python commands.
+The package exposes the same `detection-verification` command inside the
+environment. For normal use, prefer the global `uv tool install` method above.
