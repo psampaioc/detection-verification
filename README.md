@@ -145,12 +145,6 @@ system Python installation with `--break-system-packages`; that bypasses the
 operating system's package protection and can create conflicts with system
 tools.
 
-### Why not `npx`?
-
-`npx` is the package runner for Node.js packages. This project is a Python
-package, so `npx` is not an installation method for it. The equivalent Python
-application tools are `uv tool` and `pipx`.
-
 ## System dependency: `ffmpeg`
 
 Pillow is installed automatically by `uv`, `pipx`, or `pip`. The MP4 encoder
