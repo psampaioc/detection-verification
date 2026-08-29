@@ -11,6 +11,21 @@ requires-python = ">=3.9"
 dependencies = ["Pillow>=10,<12"]
 license = "MIT"
 license-files = ["LICENSE"]
+keywords = ["yolo", "computer-vision", "object-detection", "annotations", "bounding-box"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+
+[project.urls]
+Homepage = "https://github.com/psampaioc/detection-verification"
+Repository = "https://github.com/psampaioc/detection-verification"
+Issues = "https://github.com/psampaioc/detection-verification/issues"
 
 [project.scripts]
 detection-verification = "detection_verification:main"
